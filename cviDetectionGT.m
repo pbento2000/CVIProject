@@ -2,7 +2,7 @@
 
 clear all
 
-sampleXMLfile = 'PETS2009-S2L1-cropped.xml';
+sampleXMLfile = 'PETS2009-S2L1.xml';
 mlStruct = parseXML(sampleXMLfile);
 
 imgbk = imread('View_001\\frame_0000.jpg');
@@ -29,15 +29,15 @@ for i=0:seqLength
     imgbkB = imfilter(imgbk, blur, 'conv');
     imgfrB = imfilter(imgfr, blur, 'conv');
     
-    imgdif = (abs(double(imgbkB(:,:,1))-double(imgfrB(:,:,1)))>thr) | ...
-        (abs(double(imgbkB(:,:,2))-double(imgfrB(:,:,2)))>thr) | ...
-        (abs(double(imgbkB(:,:,3))-double(imgfrB(:,:,3)))>thr);
+    imgdif = (abs(double(imgbk(:,:,1))-double(imgfr(:,:,1)))>thr) | ...
+        (abs(double(imgbk(:,:,2))-double(imgfr(:,:,2)))>thr) | ...
+        (abs(double(imgbk(:,:,3))-double(imgfr(:,:,3)))>thr);
     
     imgbk = imgfr;
     
     bw = imopen(imgdif,se);
     
-    subplot(2,2,2);imshow(imgbkB); 
+    subplot(2,2,2);imshow(imgfr); 
     subplot(2,2,3);imshow(bw); drawnow
     
     a = size(mlStruct.Children((i+1)*2).Children(2).Children);
