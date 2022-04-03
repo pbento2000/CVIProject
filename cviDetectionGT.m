@@ -44,6 +44,7 @@ for i=0:seqLength
     a = int64((a(2)/2)-0.5);
     disp(a);
     bBoxes = zeros(a,4);
+    
     for n = 1:a
         bBoxes(n,1) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(1).Value);
         bBoxes(n,2) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(2).Value);
