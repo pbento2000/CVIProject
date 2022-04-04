@@ -160,5 +160,5 @@ for i=1:seqLength
     disp(iouMatrix);
     
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
-    subplot(2,2,1); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
+    subplot(2,2,4); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
 end
