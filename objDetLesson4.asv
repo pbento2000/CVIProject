@@ -1,4 +1,4 @@
-%clear all
+clear all
 
 sampleXMLfile = 'PETS2009-S2L1.xml';
 mlStruct = parseXML(sampleXMLfile);
@@ -7,8 +7,8 @@ imgbk = imread('View_001\\frame_0000.jpg');
 
 thresholdMatrix = (0:0.05:1);
 iouMatrix = zeros(1,length(thresholdMatrix));
-heatmapImg = size(imgbk);
-heatmapMatrix = zeros(heatmapImg(1), heatmapImg(2));
+heatmap = size(imgbk);
+heatmapMatrix = zeros(heatmap(1), heatmap(2));
 
 thr = 4;
 minArea = 200;
@@ -164,5 +164,5 @@ for i=1:seqLength
     
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
     subplot(2,2,4); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
+    h = heatmap(heatmapMatrix
 end
-h = heatmap(heatmapMatrix);
