@@ -74,10 +74,18 @@ for i=1:seqLength
     if regnum
         for j=1:regnum
             [lin, col]= find(lb == inds(j));
+            pixelsRegion = [lin, col];
             centroid = regionProps(inds(j)).Centroid;
             upLPoint = min([lin col]);
+            raio = sqrt((upLPoint(2) - centroid(1)).^2 + (upLPoint(1) - centroid(2)).^2);
+            disp(raio);
             dWindow  = max([lin col]) - upLPoint + 1;
-            heatmapMatrix(lin,col) = heatmapMatrix(lin, col) + 1;
+            %Calcular a distancia Gaussiana
+            for x = 1:length(pixelsRegion)
+                disp(pixelsRegion(x,1))
+                disp(pixelsRegion(x,2))
+                heatmapMatrix(pixelsRegion(x,1),pixelsRegion(x,2)) = heatmapMatrix(pixelsRegion(x,1),pixelsRegion(x,2)) + (1-(sqrt((pixelsRegion(x,1) - centroid(2)).^2 + (pixelsRegion(x,2) - centroid(1)).^2)/raio)).^2;
+            end
             %Guardar cada bounding box gerado pelo algoritmo numa matriz
             
             genBoxes(j, 1) = upLPoint(2);
@@ -165,4 +173,4 @@ for i=1:seqLength
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
     subplot(2,2,4); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
 end
-h = heatmap(heatmapMatrix);
+h = heatmap(heatmapMatrix, 'Colormap', spring);
