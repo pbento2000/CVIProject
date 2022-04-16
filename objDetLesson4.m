@@ -12,6 +12,14 @@ heatmapMatrix = zeros(heatmapImg(1), heatmapImg(2));
 nFP = 0;
 nFN = 0;
 nDetections = 0;
+maxFP = 0;
+maxFN = 0;
+frameFP = 0;
+frameFN = 0;
+bBoxFP = zeros(1);
+genBoxFP = zeros(1);
+bBoxFN = zeros(1);
+genBoxFN = zeros(1);
 
 thr = 4;
 minArea = 200;
@@ -152,7 +160,7 @@ for i=1:seqLength
     CorrespondenceMatrix = zeros(lSize, cSize);
     for l = 1:lSize
         for c = 1:cSize
-            if(sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))/(bBoxes(l,5) + genBoxes(c,5) - sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))) > 0.33)
+            if(sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))/(bBoxes(l,5) + genBoxes(c,5) - sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))) > 0.1)
                 CorrespondenceMatrix(l,c) = 1;
             end
         end
@@ -160,6 +168,22 @@ for i=1:seqLength
     
     C = sum(CorrespondenceMatrix);
     L = sum(CorrespondenceMatrix');
+    
+    fp = length(find(C==0));
+    fn = length(find(L==0));
+    
+    if fp > maxFP
+        frameFP = imgfr;
+        bBoxFP = bBoxes;
+        genBoxFP = genBoxes;
+        maxFP = fp;
+    end
+    if fn > maxFN
+        frameFN = imgfr;
+        bBoxFN = bBoxes;
+        genBoxFN = genBoxes;
+        maxFN = fn;
+    end
     
     %Somar FP (C(i) == 0) e FN (L(i) == 0)
     nFP = nFP + length(find(C==0));
@@ -189,3 +213,39 @@ xLabel = categorical({'False Negatives', 'False Positives'});
 y = [nFN/nDetections nFP/nDetections];
 bar(xLabel,y);
 ylim([0,1])
+
+figure('Name', 'False Positive Example')
+subplot(1,2,1); imshow(frameFP);
+for j=1:size(bBoxFP,1)
+        upLPoint = [bBoxFP(j,1), bBoxFP(j,2)];
+        dWindow  = [bBoxFP(j, 3), bBoxFP(j, 4)];
+    
+        rectangle('Position',[upLPoint dWindow],'EdgeColor',[1 1 0],...
+                'linewidth',2);
+end
+subplot(1,2,2); imshow(frameFP);
+for j=1:size(genBoxFP,1)
+        upLPoint = [genBoxFP(j,1), genBoxFP(j,2)];
+        dWindow  = [genBoxFP(j, 3), genBoxFP(j, 4)];
+    
+        rectangle('Position',[upLPoint dWindow],'EdgeColor',[1 1 0],...
+                'linewidth',2);
+end
+
+figure('Name', 'False Negative Example')
+subplot(1,2,1); imshow(frameFN);
+for j=1:size(bBoxFN,1)
+        upLPoint = [bBoxFN(j,1), bBoxFN(j,2)];
+        dWindow  = [bBoxFN(j, 3), bBoxFN(j, 4)];
+    
+        rectangle('Position',[upLPoint dWindow],'EdgeColor',[1 1 0],...
+                'linewidth',2);
+end
+subplot(1,2,2); imshow(frameFN);
+for j=1:size(genBoxFN,1)
+        upLPoint = [genBoxFN(j,1), genBoxFN(j,2)];
+        dWindow  = [genBoxFN(j, 3), genBoxFN(j, 4)];
+    
+        rectangle('Position',[upLPoint dWindow],'EdgeColor',[1 1 0],...
+                'linewidth',2);
+end
