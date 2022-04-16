@@ -118,7 +118,7 @@ for i=1:step:seqLength
                 'linewidth',2);
             
             if i > 1 && j <= length(inds_old)
-                intersection_area = rectint(genBoxes_old, genBoxes);
+                intersection_area = rectint(genBoxes_old(:,1:4), genBoxes(:,1:4));
                 foundMatch = false;
                 regnum_old = length(inds_old); 
                 for k=1:regnum_old
@@ -205,7 +205,7 @@ for i=1:step:seqLength
                 'linewidth',2);
     end
     
-    area = rectint(bBoxes, genBoxes);
+    area = rectint(bBoxes(:,1:4), genBoxes(:,1:4));
     sumAreaIntersection = sum(sum(area));
     
     %disp(sumAreaIntersection);
