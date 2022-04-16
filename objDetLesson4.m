@@ -3,7 +3,7 @@ clear all
 sampleXMLfile = 'PETS2009-S2L1.xml';
 mlStruct = parseXML(sampleXMLfile);
 
-imgbk = imread('View_001\\frame_0000.jpg');
+imgbk = imread('View_001\frame_0000.jpg');
 
 thresholdMatrix = (0:0.05:1);
 iouMatrix = zeros(1,length(thresholdMatrix));
@@ -71,9 +71,12 @@ for i=1:step:seqLength
     imgFinal = bwLR + bwRL;
     %imgFinal = bw;
     
-    subplot(2,2,1);imshow(imgbk);
-    subplot(2,2,2);imshow(imgfr);
-    subplot(2,2,3);imshow(imgFinal);
+%     subplot(2,2,1);imshow(imgbk);
+%     subplot(2,2,2);imshow(imgfr);
+%     subplot(2,2,3);imshow(imgFinal);
+    
+    subplot(2,2,1);imshow(imgFinal),title('imgFinal');
+    subplot(2,2,2);imshow(imgfr),title('Our Algorithm');
     
     imgbk = imgfr;
     
@@ -82,7 +85,7 @@ for i=1:step:seqLength
     inds = find([regionProps.Area]>minArea);
     
     regnum = length(inds);
-    genBoxes = zeros(regnum, 5);
+    genBoxes = zeros(regnum, 6);
     areaSum = 0;
     areaGTSum = 0;
 
@@ -123,10 +126,10 @@ for i=1:step:seqLength
                     area2 = genBoxes(j,3) * genBoxes(j,4);
                     iou = intersection_area(k,j) / (area1 + area2 - intersection_area(k,j));
                     if iou >= 0.7
-                        id = genBoxes_old(k,5);
+                        id = genBoxes_old(k,6);
                         trajectory_x{id} = [trajectory_x{id} centroid(1)];
                         trajectory_y{id} = [trajectory_y{id} centroid(2)];
-                        genBoxes(j,5) = id;
+                        genBoxes(j,6) = id;
                         text(upLPoint(2),upLPoint(1),string(id),'Color','red');
                         foundMatch=true;
                         break;
@@ -136,14 +139,14 @@ for i=1:step:seqLength
                     boxId=boxId+1;
                     trajectory_x{boxId} = centroid(1);
                     trajectory_y{boxId} = centroid(2);
-                    genBoxes(j,5) = boxId;
+                    genBoxes(j,6) = boxId;
                     text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
                 end
             else
                 boxId=boxId+1;
                 trajectory_x{boxId} = centroid(1);
                 trajectory_y{boxId} = centroid(2);
-                genBoxes(j,5) = boxId;
+                genBoxes(j,6) = boxId;
                 text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
             end
         end
@@ -186,7 +189,7 @@ for i=1:step:seqLength
     end
     
     
-    subplot(2,2,4); imshow(imgfr);
+    subplot(2,2,4); imshow(imgfr),title('Grount Truth');
     %Converter para o formato bounding box
     
     for j=1:a
@@ -244,7 +247,7 @@ for i=1:step:seqLength
     end
     
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
-    subplot(2,2,2); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
+    subplot(2,2,3); plot(thresholdMatrix, iouMatrix,'m--o'),title('Success Plot'); drawnow
 end
 figure('Name','Heatmap');
 h = heatmap(heatmapMatrix, 'Colormap', jet, 'GridVisible','off');
