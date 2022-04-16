@@ -3,12 +3,15 @@ clear all
 sampleXMLfile = 'PETS2009-S2L1.xml';
 mlStruct = parseXML(sampleXMLfile);
 
-imgbk = imread('View_001\frame_0000.jpg');
+imgbk = imread('View_001\\frame_0000.jpg');
 
 thresholdMatrix = (0:0.05:1);
 iouMatrix = zeros(1,length(thresholdMatrix));
 heatmapImg = size(imgbk);
 heatmapMatrix = zeros(heatmapImg(1), heatmapImg(2));
+nFP = 0;
+nFN = 0;
+nDetections = 0;
 
 thr = 4;
 minArea = 2000;
@@ -61,27 +64,25 @@ for i=1:step:seqLength
         (abs(double(imgbkERL(:,:,2))-double(imgfrERL(:,:,2)))>thr) | ...
         (abs(double(imgbkERL(:,:,3))-double(imgfrERL(:,:,3)))>thr);
     
-    imgbk = imgfr;
-    
-    bw = imclose(imgdif,se);
+    bw = imopen(imgdif,se);
     bwLR = imopen(imgdifLR,se);
     bwRL = imopen(imgdifRL,se);
     
     imgFinal = bwLR + bwRL;
     %imgFinal = bw;
     
+    subplot(2,2,1);imshow(imgbk);
+    subplot(2,2,2);imshow(imgfr);
+    subplot(2,2,3);imshow(imgFinal);
     
-    subplot(1,2,1);imshow(imgfr); 
-    
-    %subplot(2,2,1);imshow(imgbkg);
-    %subplot(2,2,2);imshow(imgFinal);;
+    imgbk = imgfr;
     
     [lb, num]=bwlabel(imgFinal);
     regionProps = regionprops(lb,'area','FilledImage','Centroid');
     inds = find([regionProps.Area]>minArea);
     
     regnum = length(inds);
-    genBoxes = zeros(regnum, 4);
+    genBoxes = zeros(regnum, 5);
     areaSum = 0;
     areaGTSum = 0;
 
@@ -106,9 +107,9 @@ for i=1:step:seqLength
             genBoxes(j, 2) = upLPoint(1);
             genBoxes(j, 3) = dWindow(2);
             genBoxes(j, 4) = dWindow(1);
+            genBoxes(j, 5) = dWindow(1)*dWindow(2);
             %Soma das bounding boxes calculadas
-            
-            areaSum = areaSum + dWindow(1) * dWindow(2);
+            areaSum = areaSum + genBoxes(j, 5);
             
             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
                 'linewidth',2);
@@ -169,22 +170,23 @@ for i=1:step:seqLength
     genBoxes_old = genBoxes;
     
     %Ler as bounding boxes do GT para este frame
-    
     a = size(mlStruct.Children((i+1)*2).Children(2).Children);
     a = int64((a(2)/2)-0.5);
     %disp(a);
-    bBoxes = zeros(a,4);
+    bBoxes = zeros(a,5);
     
     %Guardar numa matriz
-    
     for n = 1:a
         bBoxes(n,1) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(1).Value);
         bBoxes(n,2) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(2).Value);
         bBoxes(n,3) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(3).Value);
         bBoxes(n,4) = str2double(mlStruct.Children((i+1)*2).Children(2).Children(n*2).Children(2).Attributes(4).Value);
-        areaGTSum = areaGTSum + bBoxes(n,1) * bBoxes(n,2);
+        bBoxes(n,5) = bBoxes(n,1) * bBoxes(n,2);
+        areaGTSum = areaGTSum + bBoxes(n,5);
     end
     
+    
+    subplot(2,2,4); imshow(imgfr);
     %Converter para o formato bounding box
     
     for j=1:a
@@ -195,6 +197,9 @@ for i=1:step:seqLength
         bBoxes(j, 2) = upLPoint(2);
         bBoxes(j, 3) = dWindow(2);
         bBoxes(j, 4) = dWindow(1);
+    
+        rectangle('Position',[upLPoint fliplr(dWindow)],'EdgeColor',[1 1 0],...
+                'linewidth',2);
     end
     
     area = rectint(bBoxes, genBoxes);
@@ -203,6 +208,28 @@ for i=1:step:seqLength
     %disp(sumAreaIntersection);
     %disp(areaSum);
     %disp(areaGTSum);
+    
+    %Criar matriz de correspondencia entre a GT e as regioes do nosso
+    %algoritmo
+    lSize = size(bBoxes,1);
+    cSize = size(genBoxes,1);
+    
+    CorrespondenceMatrix = zeros(lSize, cSize);
+    for l = 1:lSize
+        for c = 1:cSize
+            if(sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))/(bBoxes(l,5) + genBoxes(c,5) - sum(sum(rectint(bBoxes(l, 1:4), genBoxes(c, 1:4))))) > 0.33)
+                CorrespondenceMatrix(l,c) = 1;
+            end
+        end
+    end
+    
+    C = sum(CorrespondenceMatrix);
+    L = sum(CorrespondenceMatrix');
+    
+    %Somar FP (C(i) == 0) e FN (L(i) == 0)
+    nFP = nFP + length(find(C==0));
+    nFN = nFN + length(find(L==0));
+    nDetections = nDetections + length(CorrespondenceMatrix);
     
     %Calcular a taxa de sucesso
     
@@ -216,29 +243,14 @@ for i=1:step:seqLength
         end
     end
     
-%     subplot(2,2,4);imshow(bw); drawnow
-%  
-%     [lb, num]=bwlabel(bw);
-%     regionProps = regionprops(lb,'area','FilledImage','Centroid');
-%     inds = find([regionProps.Area]>minArea);
-%     
-%     regnum = length(inds);
-%     
-%     if regnum
-%         for j=1:regnum
-%             [lin, col]= find(lb == inds(j));
-%             upLPoint = min([lin col]);
-%             dWindow  = max([lin col]) - upLPoint + 1;
-%             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
-%                 'linewidth',2);
-%         end
-%     end
-%     
-%     drawnow
-    %disp(iouMatrix);
-    
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
-    subplot(1,2,2); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
+    subplot(2,2,2); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
 end
-figure;
+figure('Name','Heatmap');
 h = heatmap(heatmapMatrix, 'Colormap', jet, 'GridVisible','off');
+
+figure('Name','Detection Rating');
+xLabel = categorical({'False Negatives', 'False Positives'});
+y = [nFN/nDetections nFP/nDetections];
+bar(xLabel,y);
+ylim([0,1])
