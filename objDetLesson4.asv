@@ -18,15 +18,12 @@ seqLength = 794;
 
 step = 1;
 
-boxId = 0;
-
 inds_old = 0;
 regionProps_old = 0;
 genBoxes_old = 0;
-
 trajectory_x = {};
 trajectory_y = {};
-trajectory_tail_lenght = 3;
+trajectory_tail_lenght = 25;
 
 % baseNum = 1374;
 % seqLength = 0;
@@ -63,18 +60,16 @@ for i=1:step:seqLength
     
     imgbk = imgfr;
     
-    bw = imclose(imgdif,se);
+    bw = imopen(imgdif,se);
     bwLR = imopen(imgdifLR,se);
     bwRL = imopen(imgdifRL,se);
     
     imgFinal = bwLR + bwRL;
     %imgFinal = bw;
     
-    
+    %subplot(2,2,1);imshow(imgbk);
     subplot(1,2,1);imshow(imgfr); 
-    
-    %subplot(2,2,1);imshow(imgbkg);
-    %subplot(2,2,2);imshow(imgFinal);;
+    %subplot(2,2,3);imshow(imgFinal);
     
     [lb, num]=bwlabel(imgFinal);
     regionProps = regionprops(lb,'area','FilledImage','Centroid');
@@ -92,12 +87,12 @@ for i=1:step:seqLength
             centroid = regionProps(inds(j)).Centroid;
             upLPoint = min([lin col]);
             raio = sqrt((upLPoint(2) - centroid(1)).^2 + (upLPoint(1) - centroid(2)).^2);
-            %disp(raio);
+            disp(raio);
             dWindow  = max([lin col]) - upLPoint + 1;
             %Calcular a distancia Gaussiana
             for x = 1:length(pixelsRegion)
-                %disp(pixelsRegion(x,1))
-                %disp(pixelsRegion(x,2))
+                disp(pixelsRegion(x,1))
+                disp(pixelsRegion(x,2))
                 heatmapMatrix(pixelsRegion(x,1),pixelsRegion(x,2)) = heatmapMatrix(pixelsRegion(x,1),pixelsRegion(x,2)) + (1-(sqrt((pixelsRegion(x,1) - centroid(2)).^2 + (pixelsRegion(x,2) - centroid(1)).^2)/raio)).^2;
             end
             %Guardar cada bounding box gerado pelo algoritmo numa matriz
@@ -113,60 +108,21 @@ for i=1:step:seqLength
             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
                 'linewidth',2);
             
-            if i > 1 && j <= length(inds_old)
-                intersection_area = rectint(genBoxes_old, genBoxes);
-                foundMatch = false;
-                regnum_old = length(inds_old); 
-                for k=1:regnum_old
-                    area1 = genBoxes_old(k,3) * genBoxes_old(k,4);
-                    area2 = genBoxes(j,3) * genBoxes(j,4);
-                    iou = intersection_area(k,j) / (area1 + area2 - intersection_area(k,j));
-                    if iou >= 0.7
-                        id = genBoxes_old(k,5);
-                        trajectory_x{id} = [trajectory_x{id} centroid(1)];
-                        trajectory_y{id} = [trajectory_y{id} centroid(2)];
-                        genBoxes(j,5) = id;
-                        text(upLPoint(2),upLPoint(1),string(id),'Color','red');
-                        foundMatch=true;
-                        break;
-                    end
-                end
-                if ~foundMatch
-                    boxId=boxId+1;
-                    trajectory_x{boxId} = centroid(1);
-                    trajectory_y{boxId} = centroid(2);
-                    genBoxes(j,5) = boxId;
-                    text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
-                end
-            else
-                boxId=boxId+1;
-                trajectory_x{boxId} = centroid(1);
-                trajectory_y{boxId} = centroid(2);
-                genBoxes(j,5) = boxId;
-                text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
-            end
         end
     end
     
-    %Desenhar trajectorias
+    %Draw trajectories
     
     hold on;
-    if boxId
-        for j=1:boxId
+    if regnum
+        for j=1:regnum
+            %disp(trajectory_x{j});
+            %disp(trajectory_y{j});
             plot(trajectory_x{j}, trajectory_y{j}, '-cd');
-            if ~mod(i,trajectory_tail_lenght)
-                trajectory_x{j} = trajectory_x{j}(2:end);
-                trajectory_y{j} = trajectory_y{j}(2:end);
-            end
         end
     end
     hold off;
     drawnow
-    
-    %Atualizar informacao da frame anterior
-    inds_old = inds;
-    regionProps_old = regionProps;
-    genBoxes_old = genBoxes;
     
     %Ler as bounding boxes do GT para este frame
     
