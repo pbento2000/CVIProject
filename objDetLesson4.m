@@ -1,9 +1,9 @@
-%clear all
+clear all
 
 sampleXMLfile = 'PETS2009-S2L1.xml';
 mlStruct = parseXML(sampleXMLfile);
 
-imgbk = imread('View_001\\frame_0000.jpg');
+imgbk = imread('View_001\frame_0000.jpg');
 
 thresholdMatrix = (0:0.05:1);
 iouMatrix = zeros(1,length(thresholdMatrix));
@@ -22,10 +22,22 @@ bBoxFN = zeros(1);
 genBoxFN = zeros(1);
 
 thr = 4;
-minArea = 200;
+minArea = 2000;
 
 baseNum = 0000;
 seqLength = 794;
+
+step = 1;
+
+boxId = 0;
+
+inds_old = 0;
+regionProps_old = 0;
+genBoxes_old = 0;
+
+trajectory_x = {};
+trajectory_y = {};
+trajectory_tail_lenght = 3;
 
 % baseNum = 1374;
 % seqLength = 0;
@@ -36,10 +48,10 @@ edgeLR = [-1,0,1:-1,0,1:-1,0,1];
 edgeRL = [1,0,-1:1,0,-1:1,0,-1];
 
 figure;
-for i=1:seqLength
+for i=1:step:seqLength
     imgfr = imread(sprintf('View_001\\frame_%.4d.jpg',baseNum+i));
     hold off
-    subplot(2,2,1);imshow(imgfr);
+    %subplot(1,2,1);imshow(imgfr);
     
     %Utilizar edge matrix para comparar só as edges de cada frame
     
@@ -67,9 +79,12 @@ for i=1:seqLength
     imgFinal = bwLR + bwRL;
     %imgFinal = bw;
     
-    subplot(2,2,1);imshow(imgbk);
-    subplot(2,2,2);imshow(imgfr);
-    subplot(2,2,3);imshow(imgFinal);
+%     subplot(2,2,1);imshow(imgbk);
+%     subplot(2,2,2);imshow(imgfr);
+%     subplot(2,2,3);imshow(imgFinal);
+    
+    subplot(2,2,1);imshow(imgFinal),title('imgFinal');
+    subplot(2,2,2);imshow(imgfr),title('Our Algorithm');
     
     imgbk = imgfr;
     
@@ -78,7 +93,7 @@ for i=1:seqLength
     inds = find([regionProps.Area]>minArea);
     
     regnum = length(inds);
-    genBoxes = zeros(regnum, 5);
+    genBoxes = zeros(regnum, 6);
     areaSum = 0;
     areaGTSum = 0;
 
@@ -109,8 +124,61 @@ for i=1:seqLength
             
             rectangle('Position',[fliplr(upLPoint) fliplr(dWindow)],'EdgeColor',[1 1 0],...
                 'linewidth',2);
+            
+            if i > 1 && j <= length(inds_old)
+                intersection_area = rectint(genBoxes_old(:,1:4), genBoxes(:,1:4));
+                foundMatch = false;
+                regnum_old = length(inds_old); 
+                for k=1:regnum_old
+                    area1 = genBoxes_old(k,3) * genBoxes_old(k,4);
+                    area2 = genBoxes(j,3) * genBoxes(j,4);
+                    iou = intersection_area(k,j) / (area1 + area2 - intersection_area(k,j));
+                    if iou >= 0.7
+                        id = genBoxes_old(k,6);
+                        trajectory_x{id} = [trajectory_x{id} centroid(1)];
+                        trajectory_y{id} = [trajectory_y{id} centroid(2)];
+                        genBoxes(j,6) = id;
+                        text(upLPoint(2),upLPoint(1),string(id),'Color','red');
+                        foundMatch=true;
+                        break;
+                    end
+                end
+                if ~foundMatch
+                    boxId=boxId+1;
+                    trajectory_x{boxId} = centroid(1);
+                    trajectory_y{boxId} = centroid(2);
+                    genBoxes(j,6) = boxId;
+                    text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
+                end
+            else
+                boxId=boxId+1;
+                trajectory_x{boxId} = centroid(1);
+                trajectory_y{boxId} = centroid(2);
+                genBoxes(j,6) = boxId;
+                text(upLPoint(2),upLPoint(1),string(boxId),'Color','red');
+            end
         end
     end
+    
+    %Desenhar trajectorias
+    
+    hold on;
+    if boxId
+        for j=1:boxId
+            plot(trajectory_x{j}, trajectory_y{j}, '-cd');
+            if ~mod(i,trajectory_tail_lenght)
+                trajectory_x{j} = trajectory_x{j}(2:end);
+                trajectory_y{j} = trajectory_y{j}(2:end);
+            end
+        end
+    end
+    hold off;
+    drawnow
+    
+    %Atualizar informacao da frame anterior
+    inds_old = inds;
+    regionProps_old = regionProps;
+    genBoxes_old = genBoxes;
     
     %Ler as bounding boxes do GT para este frame
     a = size(mlStruct.Children((i+1)*2).Children(2).Children);
@@ -129,7 +197,7 @@ for i=1:seqLength
     end
     
     
-    subplot(2,2,4); imshow(imgfr);
+    subplot(2,2,4); imshow(imgfr),title('Grount Truth');
     %Converter para o formato bounding box
     
     for j=1:a
@@ -145,7 +213,7 @@ for i=1:seqLength
                 'linewidth',2);
     end
     
-    area = rectint(bBoxes, genBoxes);
+    area = rectint(bBoxes(:,1:4), genBoxes(:,1:4));
     sumAreaIntersection = sum(sum(area));
     
     %disp(sumAreaIntersection);
@@ -203,7 +271,7 @@ for i=1:seqLength
     end
     
     %Esta a criar um grafico para cada frame, mas pode se fazer so no fim
-    subplot(2,2,2); plot(thresholdMatrix, iouMatrix,'m--o'); drawnow
+    subplot(2,2,3); plot(thresholdMatrix, iouMatrix,'m--o'),title('Success Plot'); drawnow
 end
 figure('Name','Heatmap');
 h = heatmap(heatmapMatrix, 'Colormap', jet, 'GridVisible','off');
